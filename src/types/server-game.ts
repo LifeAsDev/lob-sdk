@@ -3,66 +3,121 @@ import { GameDataManager } from "@lob-sdk/game-data-manager"
 import { GameEra } from "@lob-sdk/game-data-manager";
 import { Point2, Vector2 } from "@lob-sdk/vector";
 
+/**
+ * A unique identifier for game entities (units, objectives, etc.).
+ */
 export type EntityId = number;
 
+/**
+ * Status of a game turn.
+ */
 export enum TurnStatus {
+  /** Turn is currently in progress. */
   InProgress = "IN_PROGRESS",
+  /** Turn has been completed. */
   Completed = "COMPLETED",
+  /** Turn has timed out. */
   TimedOut = "TIMED_OUT",
 }
 
+/**
+ * Reason why a game ended.
+ */
 export enum GameEndReason {
+  /** Game ended due to victory conditions. */
   Victory = "victory",
+  /** Game ended because maximum turn limit was reached. */
   MaxTurn = "max_turn",
+  /** Game was cancelled. */
   Cancelled = "cancelled",
+  /** Game ended in a draw by agreement. */
   DrawByAgreement = "draw_by_agreement",
 }
 
+/**
+ * Dynamic battle type configuration.
+ */
 export enum DynamicBattleType {
+  /** Smallest battle type. */
   Clash = "clash",
+  /** Standard battle type. */
   Combat = "combat",
+  /** Large battle type. */
   Battle = "battle",
+  /** Largest battle type. */
   GrandBattle = "grand_battle",
 }
 
+/**
+ * Template configuration for a battle type, defining resources, unit limits, and game rules.
+ */
 export interface BattleTypeTemplate {
+  /** Starting manpower for players. */
   manpower: number;
+  /** Starting gold for players. */
   gold: number;
+  /** Starting ammo reserve for players. */
   ammoReserve: number;
+  /** Conversion rate from gold to ammo. */
   goldToAmmoRate: number;
+  /** Optional ratio for spawning skirmishers [skirmisherRatio, coreUnitsRatio]. */
   skirmisherRatio?: number[];
+  /** Whether fog of war is enabled. */
   fogOfWar: boolean;
+  /** Maximum number of each unit type allowed. */
   unitCaps: Record<UnitType, number>;
+  /** ELO K-factor for rating calculations. */
   eloKFactor: number;
+  /** Number of ticks required to capture small objectives. */
   ticksToCaptureSmall: number;
+  /** Number of ticks required to capture big objectives. */
   ticksToCaptureBig: number;
+  /** Default army composition for this battle type. */
   defaultArmy: UnitCounts;
 }
 
+/**
+ * Direction relative to a unit's facing.
+ */
 export enum Direction {
+  /** Front of the unit. */
   Front,
+  /** Right side of the unit. */
   Right,
+  /** Back of the unit. */
   Back,
+  /** Left side of the unit. */
   Left,
 }
 
+/**
+ * Result of a game for a user.
+ */
 export type GameUserResult = "win" | "lose" | "tie";
 
 /**
  * Metadata column in the games table.
+ * Stores additional game information that doesn't affect gameplay.
  */
 export interface GameMetadata {
+  /** Whether the game ended with a conquest victory. */
   conquestVictory?: boolean;
+  /** Language locales used in the game. */
   locales?: GameLocales;
+  /** Custom variables for game tracking. */
   vars?: Record<string, number>;
 }
 
 /**
  * Game data that will be saved in the DB.
+ * Contains all information needed to restore and continue a game.
  */
 export interface GameData {
+  /** The game era (e.g., "napoleonic", "ww2"). */
   era: GameEra;
+  /** Name of the scenario being played. */
   scenarioName: string;
+  /** Type of scenario (e.g., tutorial, skirmish, campaign). */
   scenarioType: GameScenarioType;
 
   /**
@@ -80,12 +135,18 @@ export interface GameData {
    */
   prevGameState: GameState | null;
 
+  /** Information about all players in the game. */
   players: PlayerInfo[];
 
+  /** Current turn number. */
   turnNumber: number;
+  /** Whether the game has started. */
   started: boolean;
+  /** Whether the game has finished. */
   finished: boolean;
+  /** Whether this is a ranked game. */
   ranked: boolean;
+  /** Reason why the game ended, if finished. */
   endReason: GameEndReason | null;
 
   /**
@@ -98,64 +159,116 @@ export interface GameData {
    */
   turnTimeLimit: number;
 
+  /** Dynamic battle type configuration, if applicable. */
   dynamicBattleType: DynamicBattleType | null;
+  /** Maximum number of turns before the game ends. */
   maxTurn: number;
+  /** Configuration for all players in the game. */
   playerSetups: PlayerSetup[];
+  /** Turn number when draw offers become available. */
   drawUnlockTurn: number;
+  /** Client events to be sent to players. */
   clientEvents: GameClientEventDto[] | null;
+  /** Whether fog of war is enabled. */
   fogOfWar: boolean;
-  tournamentId?: number; // required for the client knowing a game is a tournament game
-  createdAt: number; // in seconds
+  /** Tournament ID, if this is a tournament game. Required for the client to know a game is a tournament game. */
+  tournamentId?: number;
+  /** Timestamp in seconds when the game was created. */
+  createdAt: number;
+  /** Additional metadata for the game. */
   metadata?: GameMetadata;
 }
 
+/**
+ * Result of a ranged attack shot.
+ */
 export interface ShootResult {
+  /** The ranged attack action that was executed. */
   action: RangedAttackAction;
+  /** Amount of ammo consumed by the shot. */
   ammoCost: number;
+  /** Amount of stamina consumed by the shot. */
   staminaCost: number;
 }
 
+/**
+ * Result of a damage calculation, representing a hit on a unit.
+ */
 export interface DamageHit {
+  /** Amount of damage dealt. */
   damage: number;
+  /** Organization bonus/penalty applied. */
   orgBonus: number;
+  /** Type of damage dealt. */
   damageType: string;
+  /** Optional backlash hit if the attack caused a counter-attack. */
   backlashHit?: DamageHit;
+  /** Whether this was a charge attack. */
   charge?: boolean;
 }
 
+/**
+ * Represents the complete state of a game at a point in time.
+ * @template UsePartialIds - Whether to use partial IDs for units (true) or full IDs (false).
+ */
 export interface GameState<UsePartialIds extends boolean = false> {
+  /** Information about players and their units gained during battle. */
   players: {
+    /** The player number. */
     player: number;
     /**
      * Units gained in the middle of the battle. See `addUnit` trigger.
      */
     unitsGained: UnitCounts | null;
   }[];
+  /** Information about teams and their army power. */
   teams: {
+    /** The team number. */
     team: number;
+    /** Total army power of the team. */
     armyPower: number;
   }[];
+  /** All units in the game. */
   units: UsePartialIds extends true ? UnitDtoPartialId[] : UnitDto[];
+  /** The game map with terrain and deployment zones. */
   map: GameMap;
+  /** All objectives in the game, if any. */
   objectives?: ObjectiveDto<UsePartialIds extends true ? false : true>[];
+  /** Game triggers that can modify game state. */
   triggers: GameTrigger[];
 }
 
+/**
+ * Result of a completed game.
+ */
 export interface GameResult {
+  /** The winning team number. */
   winnerTeam: number;
+  /** Players who won the game. */
   winners: Pick<Player, "playerNumber" | "userId">[];
+  /** Players who lost the game. */
   losers: Pick<Player, "playerNumber" | "userId">[];
 }
 
+/**
+ * Configuration for a player's setup in the game.
+ */
 export interface PlayerSetup {
+  /** The player number. */
   player: number;
+  /** The team number the player belongs to. */
   team: number;
-  /** Used for preset scenarios */
+  /** Ammo reserve for the player. Used for preset scenarios. */
   ammoReserve?: number;
+  /** Base ammo reserve before any modifications. */
   baseAmmoReserve?: number;
 }
 
+/**
+ * Options for handling turn status updates.
+ */
 export interface HandleTurnStatusOptions {
+  /** Callback to execute before a timeout occurs. */
   onPreTimeout: () => Promise<void>;
 }
 
@@ -179,27 +292,51 @@ export interface CollisionData<T extends IUnit = IUnit> {
   totalOverlap: number;
 }
 
+/**
+ * Data for a pending melee attack between two units.
+ * @template T - The type of unit, must extend IUnit.
+ */
 export interface PendingMeleeAttackData<T extends IUnit = IUnit> {
+  /** The first unit in the melee attack. */
   unit1: T;
+  /** The second unit in the melee attack. */
   unit2: T;
+  /** Collision data for the attack. */
   collision: CollisionData;
+  /** Whether this is a charge attack. */
   charge?: boolean;
 }
 
+/**
+ * Unique identifier for a game. Can be a string or number.
+ */
 export type GameId = string | number;
 
+/**
+ * Data for a pending shot, representing where a unit is aiming.
+ */
 export type PendingShotData = {
+  /** Target position for the shot. */
   position: Vector2;
-  /** Direction to the position in radians */
+  /** Direction to the position in radians. */
   direction: number;
 };
 
+/**
+ * Properties for adding a new player to the game.
+ */
 export interface AddNewPlayerProps {
+  /** The user ID. */
   userId: number;
+  /** The player's username. */
   username: string;
+  /** The player's ELO rating. */
   elo: number;
+  /** The player's tier level. */
   userTier?: UserTier;
+  /** Optional unit composition for the player. */
   units?: UnitCounts;
+  /** Optional player number. If not provided, will be auto-assigned. */
   playerNumber?: number;
 }
 
@@ -835,52 +972,103 @@ export interface IServerGame {
    */
   age(): number;
 
+  /**
+   * Gets units near a position within a certain height.
+   * @param position - The position to search from.
+   * @param height - The height/distance to search within.
+   * @returns Array of nearby units.
+   * @template T - The type of unit to return, must extend IUnit.
+   */
   getNearbyUnits<T extends IUnit = IUnit>(
     position: Point2,
     height: number
   ): T[];
 }
 
+/**
+ * Properties for creating a new ServerGame instance.
+ */
 export interface ServerGameProps {
+  /** Unique identifier for the game. */
   id: GameId;
+  /** The game era (e.g., "napoleonic", "ww2"). */
   era: GameEra;
+  /** Name of the scenario being played. */
   scenarioName: string;
+  /** Dynamic battle type configuration, if applicable. */
   dynamicBattleType: DynamicBattleType | null;
+  /** Type of scenario (e.g., tutorial, skirmish, campaign). */
   scenarioType: GameScenarioType;
+  /** Current turn number. */
   turnNumber: number;
+  /** Current game state. */
   state: GameState<true> | GameState<false>;
+  /** Previous game state, if available. */
   previousState?: GameState | null;
+  /** All players in the game. */
   players: Player[];
+  /** Timestamp (milliseconds) when the current turn started. */
   turnStartedTime: number;
+  /** Turn duration limit in seconds. */
   turnTimeLimit: number;
+  /** Whether the game has started. */
   started: boolean;
+  /** Whether the game has finished. */
   finished: boolean;
+  /** Whether this is a ranked game. */
   ranked: boolean;
+  /** Whether this game gives rewards to players. */
   givesRewards: boolean;
+  /** Maximum number of turns before the game ends. */
   maxTurn: number;
+  /** Configuration for all players in the game. */
   playerSetups?: PlayerSetup[];
+  /** Tournament ID, if this is a tournament game. */
   tournamentId?: number;
+  /** Turn number when draw offers become available. */
   drawUnlockTurn: number;
+  /** Last actions executed, if any. */
   lastActions?: AnyAction[] | null;
+  /** Client events to be sent to players. */
   clientEvents?: GameClientEventDto[] | null;
+  /** Whether fog of war is enabled. */
   fogOfWar?: boolean;
+  /** Timestamp (milliseconds) when the game was created. */
   createdAt?: number;
+  /** Additional metadata for the game. */
   metadata?: GameMetadata;
 }
 
+/**
+ * Represents a terrain check with an associated weight.
+ */
 export interface UnitTerrainCheck {
+  /** The terrain type being checked. */
   terrain: TerrainType;
+  /** Weight value for this terrain check. */
   weight: number;
 }
 
+/**
+ * Represents the proportion of a unit's position that is on a specific terrain type.
+ */
 export interface UnitTerrainProportion {
+  /** The terrain type. */
   terrain: TerrainType;
+  /** Proportion (0-1) of the unit's position on this terrain. */
   proportion: number;
 }
 
+/**
+ * Represents a rectangular zone with position and dimensions.
+ */
 export interface Zone {
+  /** X coordinate of the zone's top-left corner. */
   x: number;
+  /** Y coordinate of the zone's top-left corner. */
   y: number;
+  /** Width of the zone. */
   width: number;
+  /** Height of the zone. */
   height: number;
 }
