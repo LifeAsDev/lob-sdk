@@ -1,33 +1,6 @@
-import {
-  AnyAction,
-  RangedAttackAction,
-  TurnSubmission,
-  PlayerInfo,
-  UserTier,
-  GameScenarioType,
-  GameLocales,
-  GameClientEventDto,
-  GameTrigger,
-  ITriggerSystem,
-  UnitDtoPartialId,
-  UnitType,
-  UnitDto,
-  IUnit,
-  UnitCounts,
-  ObjectiveDto,
-  IObjective,
-  GameMap,
-  TerrainType,
-  FogOfWarResult,
-  IServerFogOfWarService,
-  IVpService,
-  IOrderManager,
-  IGameDataManager,
-  IOrganizationSystem,
-  IAttackSystem,
-  IMovementSystem,
-  Player,
-} from "@lob-sdk/types";
+import { AnyAction, RangedAttackAction, TurnSubmission, PlayerInfo, UserTier, GameScenarioType, GameLocales, GameClientEventDto, GameTrigger, ITriggerSystem, UnitDtoPartialId, UnitType, UnitDto, IUnit, UnitCounts, ObjectiveDto, IObjective, GameMap, TerrainType, FogOfWarResult, IServerFogOfWarService, IVpService, IOrderManager, IOrganizationSystem, IAttackSystem, IMovementSystem, Player,  } from "@lob-sdk/types"
+import { GameDataManager } from "@lob-sdk/game-data-manager"
+import { GameEra } from "@lob-sdk/game-data-manager";
 import { Point2, Vector2 } from "@lob-sdk/vector";
 
 export type EntityId = number;
@@ -52,14 +25,26 @@ export enum DynamicBattleType {
   GrandBattle = "grand_battle",
 }
 
+export interface BattleTypeTemplate {
+  manpower: number;
+  gold: number;
+  ammoReserve: number;
+  goldToAmmoRate: number;
+  skirmisherRatio?: number[];
+  fogOfWar: boolean;
+  unitCaps: Record<UnitType, number>;
+  eloKFactor: number;
+  ticksToCaptureSmall: number;
+  ticksToCaptureBig: number;
+  defaultArmy: UnitCounts;
+}
+
 export enum Direction {
   Front,
   Right,
   Back,
   Left,
 }
-
-export type GameEra = "napoleonic" | "ww2";
 
 export type GameUserResult = "win" | "lose" | "tie";
 
@@ -517,7 +502,7 @@ export interface IServerGame {
    * @returns The shoot result, or null if shot is invalid
    */
   shoot(
-    gameDataManager: IGameDataManager,
+    gameDataManager: GameDataManager,
     unit: IUnit,
     targetPosition: Vector2
   ): ShootResult | null;
@@ -849,4 +834,53 @@ export interface IServerGame {
    * @returns Age of the game in seconds
    */
   age(): number;
+
+  getNearbyUnits<T extends IUnit = IUnit>(
+    position: Point2,
+    height: number
+  ): T[];
+}
+
+export interface ServerGameProps {
+  id: GameId;
+  era: GameEra;
+  scenarioName: string;
+  dynamicBattleType: DynamicBattleType | null;
+  scenarioType: GameScenarioType;
+  turnNumber: number;
+  state: GameState<true> | GameState<false>;
+  previousState?: GameState | null;
+  players: Player[];
+  turnStartedTime: number;
+  turnTimeLimit: number;
+  started: boolean;
+  finished: boolean;
+  ranked: boolean;
+  givesRewards: boolean;
+  maxTurn: number;
+  playerSetups?: PlayerSetup[];
+  tournamentId?: number;
+  drawUnlockTurn: number;
+  lastActions?: AnyAction[] | null;
+  clientEvents?: GameClientEventDto[] | null;
+  fogOfWar?: boolean;
+  createdAt?: number;
+  metadata?: GameMetadata;
+}
+
+export interface UnitTerrainCheck {
+  terrain: TerrainType;
+  weight: number;
+}
+
+export interface UnitTerrainProportion {
+  terrain: TerrainType;
+  proportion: number;
+}
+
+export interface Zone {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
